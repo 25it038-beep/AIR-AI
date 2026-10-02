@@ -10,7 +10,7 @@ echo  This will download and configure AI models onto
 echo  your USB drive. You'll get to CHOOSE which models
 echo  to install from a curated list.
 echo.
-echo   - 6 preset models (uncensored + standard)
+echo   - 6 preset models (standard)
 echo   - Custom model support (bring your own GGUF)
 echo   - Minimum USB space: 8 GB (16 GB recommended)
 echo.
@@ -23,9 +23,12 @@ powershell -ExecutionPolicy Bypass -File "%~dp0install-core.ps1"
 
 echo.
 echo ===================================================
-echo     SETUP COMPLETE! You're ready to go! hs:https://hs-ai-studio.onrender.com/
+echo     SETUP COMPLETE! You're ready to go! 
 echo ===================================================
 echo.
-echo  To start: double-click start-fast-chat.bat
+echo  open HSAI.EXE
 echo.
+echo ==================================================
+echo @All Rights reserved to hs:https://hs-ai-studio.onrender.com/
+echo ==================================================
 pause

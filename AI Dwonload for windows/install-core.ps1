@@ -1,5 +1,5 @@
 # ================================================================
-# PORTABLE UNCENSORED AI - AUTOMATED USB SETUP SCRIPT
+# AIR AI - AUTOMATED USB SETUP SCRIPT
 # ================================================================
 # Multi-Model Edition: Choose one or more AI models to install!
 # Supports preset models + custom HuggingFace GGUF downloads.
@@ -68,7 +68,7 @@ function Test-DownloadedFile {
 # ================================================================
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   PORTABLE AI USB - Multi-Model Setup                    " -ForegroundColor Cyan
+Write-Host "   AIR AI USB - Multi-Model Setup                    " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -90,8 +90,8 @@ foreach ($m in $ModelCatalog) {
     $nameStr  = " $($m.Name)"
     $sizeStr  = " (~$($m.Size) GB)"
 
-    if ($m.Label -eq "UNCENSORED") {
-        $labelStr   = " [UNCENSORED]"
+    if ($m.Label -eq "STANDARD") {
+        $labelStr   = " [STANDARD]"
         $labelColor = "Red"
     } else {
         $labelStr   = " [STANDARD]"
