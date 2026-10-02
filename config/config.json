@@ -1,0 +1,41 @@
+{
+  "app_name": "HS AI Network",
+  "app_version": "2.0.0",
+  "brand": "HS AI",
+  "subtitle": "LOCAL INTELLIGENCE NETWORK",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "fallback_port": 3333,
+    "cors_origins": ["*"]
+  },
+  "hotspot": {
+    "auto_enable": true,
+    "default_ip": "192.168.137.1",
+    "ssid_prefix": "HS-AI-Network"
+  },
+  "model": {
+    "active_model": "llama3.2:latest",
+    "temperature": 0.7,
+    "context_length": 4096,
+    "max_concurrency": 4,
+    "ollama_host": "http://127.0.0.1:11434",
+    "llama_server_host": "http://127.0.0.1:8080"
+  },
+  "security": {
+    "require_pin": false,
+    "network_pin": "8888",
+    "rate_limit_requests_per_min": 60,
+    "max_connected_clients": 30,
+    "blocked_ips": [],
+    "max_upload_size_mb": 20
+  },
+  "discovery": {
+    "hostname": "hs-ai.local",
+    "enable_mdns": true
+  },
+  "logging": {
+    "level": "INFO",
+    "log_chat_content": false
+  }
+}

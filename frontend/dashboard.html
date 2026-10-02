@@ -1,0 +1,661 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AIR AI Host - Appliance Control Dashboard</title>
+  <meta name="theme-color" content="#07090e">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/hs-ai.css">
+  <style>
+    body {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .dash-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* Section Navigation Tabs */
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 242, 254, 0.1);
+      border-color: rgba(0, 242, 254, 0.35);
+      color: var(--accent-cyan);
+    }
+
+    /* Metric Gauges */
+    .stat-card {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stat-main-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: var(--radius-full);
+      transition: width 0.3s ease;
+    }
+
+    /* Security Panel */
+    .security-matrix {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .sec-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sec-item-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sec-item-status {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    th {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-primary);
+    }
+
+    .qr-box {
+      width: 160px;
+      height: 160px;
+      margin: 0 auto;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-glow);
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-box svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 16px;
+      }
+      .security-matrix {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="dash-header">
+    <div>
+      <div class="brand-subtitle">PORTABLE AI APPLIANCE CONTROL</div>
+      <h1 class="brand-title" style="font-size: 1.8rem; margin-top: 4px;">
+        <span>AIR AI HOST DASHBOARD</span>
+        <span class="badge-status badge-online" id="hostOnlineBadge">
+          <span class="pulse-dot"></span> ACTIVE
+        </span>
+      </h1>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <button class="btn btn-secondary btn-sm" onclick="openModal('qrModal')">
+        Show QR Code
+      </button>
+      <a href="/chat" class="btn btn-secondary btn-sm" target="_blank">
+        Open Chat UI ↗
+      </a>
+      <button class="btn btn-primary btn-sm" onclick="runAiInferenceTest()">
+        [ TEST AI ]
+      </button>
+    </div>
+  </header>
+
+  <!-- Section 26: Dashboard Section Navigation Tabs -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchSection('overview')">OVERVIEW</button>
+    <button class="tab-btn" onclick="switchSection('security')">SECURITY & PIN</button>
+    <button class="tab-btn" onclick="switchSection('devices')">DEVICES</button>
+    <button class="tab-btn" onclick="switchSection('model')">MODEL RUNTIME</button>
+    <button class="tab-btn" onclick="switchSection('network')">NETWORK & PORTAL</button>
+  </div>
+
+  <!-- SECTION 1: OVERVIEW & PERFORMANCE (Section 26 & 27) -->
+  <div id="sec-overview">
+    <!-- Metric Gauges -->
+    <div class="grid-4" style="margin-bottom: 24px;">
+      <!-- CPU -->
+      <div class="glass-panel stat-card">
+        <div class="stat-header">
+          <span>CPU USAGE</span>
+          <span id="cpuPctText">0%</span>
+        </div>
+        <div class="stat-main-val" id="cpuVal">--%</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="cpuBar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- RAM -->
+      <div class="glass-panel stat-card">
+        <div class="stat-header">
+          <span>SYSTEM RAM</span>
+          <span id="ramGbText">-- / -- GB</span>
+        </div>
+        <div class="stat-main-val" id="ramVal">--%</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="ramBar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- GPU -->
+      <div class="glass-panel stat-card">
+        <div class="stat-header">
+          <span>GPU ACCELERATION</span>
+          <span id="gpuNameText">Checking...</span>
+        </div>
+        <div class="stat-main-val" id="gpuVal">--%</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="gpuBar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- VRAM -->
+      <div class="glass-panel stat-card">
+        <div class="stat-header">
+          <span>DEDICATED VRAM</span>
+          <span id="vramGbText">-- GB Total</span>
+        </div>
+        <div class="stat-main-val" id="vramVal">--%</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="vramBar" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overview Highlights Grid -->
+    <div class="grid-2" style="margin-bottom: 24px;">
+      <!-- AI Engine Overview -->
+      <div class="glass-panel" style="padding: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 style="font-size:1.1rem;">AI Engine Overview</h3>
+          <span class="badge-status badge-online" id="engineStatusBadge">● Running</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.9rem;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Active Model:</span>
+            <b id="activeModelLabel" style="color:var(--accent-cyan)">llama3.2</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Inference Speed:</span>
+            <b><span id="tokenSpeedVal">0</span> tok/s</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Active Requests:</span>
+            <b id="activeRequestsVal">0</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Concurrency Queue:</span>
+            <b id="queuedRequestsVal">0 queued</b>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="runAiInferenceTest()">[ TEST AI ]</button>
+          <button class="btn btn-secondary btn-sm" onclick="openModal('switchModelModal')">Switch Model</button>
+        </div>
+      </div>
+
+      <!-- Network Overview -->
+      <div class="glass-panel" style="padding: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 style="font-size:1.1rem;">Local Appliance Network</h3>
+          <span class="badge-status badge-online">● Hotspot Ready</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.9rem;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Host IP Address:</span>
+            <b id="dashHostIp" style="font-family:var(--font-mono); color:var(--accent-cyan)">192.168.137.1</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Captive Portal (Port 80):</span>
+            <b style="color:var(--accent-green)">● Active TCP Proxy</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Connected Clients:</span>
+            <b id="dashConnectedCount" style="color:var(--accent-cyan)">0</b>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Public Internet Exposure:</span>
+            <b style="color:var(--accent-green)">● None (Isolated)</b>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button class="btn btn-secondary btn-sm" onclick="copyClientAddress()">Copy Client URL</button>
+          <button class="btn btn-primary btn-sm" onclick="runCaptiveTest()">Run Network Test</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: SECURITY & PIN MANAGEMENT (Section 1, 2, 3, 28) -->
+  <div id="sec-security" style="display: none; margin-bottom: 24px;">
+    <!-- Host PIN Card (Section 3) -->
+    <div class="glass-panel" style="padding: 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div class="brand-subtitle">CLIENT ACCESS CONTROL</div>
+          <h3 style="font-size: 1.3rem;">Host Access PIN</h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="chkRequirePin" onchange="togglePinRequirement(this.checked)" style="accent-color: var(--accent-cyan); width: 18px; height: 18px;">
+            Require PIN for New Devices
+          </label>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+        <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glow); border-radius: var(--radius-md); padding: 16px 28px; text-align: center;">
+          <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">CURRENT NETWORK PIN</div>
+          <div style="font-size: 2.2rem; font-weight: 900; letter-spacing: 0.25em; color: var(--accent-cyan); font-family: var(--font-mono); margin: 6px 0;" id="displayCurrentPin">
+            ------
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);" id="displayPinExpires">
+            Expires: --:--
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 240px;">
+          <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px;">
+            When enabled, connected phones or PCs must enter this 6-digit PIN on the Welcome Portal to establish an authenticated session.
+          </p>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary btn-sm" onclick="generateNewPin()">
+              [ GENERATE NEW PIN ]
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="refreshPinStatus()">
+              Refresh Status ⟳
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network Security Matrix (Section 28) -->
+    <div class="glass-panel" style="padding: 24px;">
+      <h3 style="font-size: 1.1rem; margin-bottom: 4px;">Network Security Posture</h3>
+      <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 16px;">
+        Zero-trust local defense matrix protecting host resources from untrusted client devices
+      </p>
+
+      <div class="security-matrix">
+        <div class="sec-item">
+          <span class="sec-item-label">Local Network Only</span>
+          <span class="sec-item-status" style="color: var(--accent-green);">● ACTIVE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Bound to private hotspot subnet</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">Network Authentication</span>
+          <span class="sec-item-status" id="secStatusAuth" style="color: var(--accent-green);">● ACTIVE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Cryptographic PIN session token</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">Rate Limiting</span>
+          <span class="sec-item-status" style="color: var(--accent-green);">● ACTIVE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Per-device multi-bucket throttling</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">Device Isolation</span>
+          <span class="sec-item-status" style="color: var(--accent-green);">● ACTIVE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Isolated session uploads folder</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">Public Internet</span>
+          <span class="sec-item-status" style="color: var(--accent-green);">● NOT EXPOSED</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">No UPnP, tunnels, or external routes</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">Session Expiration</span>
+          <span class="sec-item-status" style="color: var(--accent-green);">● ACTIVE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Sliding idle-timeout & hard cap</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: DEVICES & SESSIONS (Section 5) -->
+  <div id="sec-devices" style="display: none; margin-bottom: 24px;">
+    <div class="glass-panel" style="padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="font-size: 1.2rem;">Connected Devices & Sessions</h3>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Clients monitored on private AIR AI network
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="refreshDevicesTable()">
+            Refresh Devices ⟳
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Form Factor</th>
+              <th>Operating System</th>
+              <th>IP Address</th>
+              <th>Session</th>
+              <th>Last Active</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: MODEL CONTROLS -->
+  <div id="sec-model" style="display: none; margin-bottom: 24px;">
+    <div class="glass-panel" style="padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 1.2rem;">Model Management & Runtime</h3>
+        <button class="btn btn-primary btn-sm" onclick="openModal('switchModelModal')">Switch Model ▾</button>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 16px;">
+        Manage offline models loaded in memory on the NVIDIA RTX GPU and host RAM.
+      </p>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-secondary btn-sm" onclick="runAiInferenceTest()">[ RUN INFERENCE TEST ]</button>
+        <button class="btn btn-secondary btn-sm" onclick="reloadModel()">Reload Current Model</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: NETWORK & CAPTIVE PORTAL (Sections 1, 10, 14) -->
+  <div id="sec-network" style="display: none; margin-bottom: 24px;">
+    <!-- Diagnostics Card -->
+    <div class="glass-panel" style="padding: 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div class="brand-subtitle">NETWORK APPLIANCE VERIFICATION</div>
+          <h3 style="font-size: 1.25rem;">AIR AI Network Diagnostics</h3>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary btn-sm" id="btnRunNetDiag" onclick="runNetworkDiagnostics()">[ RUN NETWORK TEST ]</button>
+          <a href="/test/captive-portal" target="_blank" class="btn btn-secondary btn-sm">Open Test Page ↗</a>
+        </div>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">
+        Real-time verification of the complete offline network path: Hotspot ➔ DHCP ➔ DNS ➔ HTTP ➔ Captive Portal ➔ Firewall.
+      </p>
+
+      <!-- 8-Point Verification Matrix (Section 1 & 14) -->
+      <div class="security-matrix" id="netDiagMatrix">
+        <div class="sec-item">
+          <span class="sec-item-label">HOTSPOT</span>
+          <span class="sec-item-status" id="diagHotspotStatus" style="color: var(--accent-green);">● DETECTED</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagHotspotDetail">Mobile Hotspot adapter</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">HOTSPOT IP</span>
+          <span class="sec-item-status" id="diagHostIp" style="color: var(--accent-cyan); font-family: var(--font-mono);">192.168.137.1</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagIpDetail">Primary host interface</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">DHCP</span>
+          <span class="sec-item-status" id="diagDhcpStatus" style="color: var(--accent-green);">● AVAILABLE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagDhcpDetail">Windows ICS auto-IP assignment</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">DNS</span>
+          <span class="sec-item-status" id="diagDnsStatus" style="color: var(--accent-green);">● RUNNING</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagDnsDetail">RFC 1035 UDP 53 resolver</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">HTTP SERVER</span>
+          <span class="sec-item-status" id="diagHttpStatus" style="color: var(--accent-green);">● RUNNING</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagHttpDetail">Port 80 proxy & Port 8000 API</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">CAPTIVE PORTAL</span>
+          <span class="sec-item-status" id="diagCpStatus" style="color: var(--accent-green);">● RUNNING</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagCpDetail">OS connectivity-check probes</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">CONNECTIVITY CHECK</span>
+          <span class="sec-item-status" id="diagCcStatus" style="color: var(--accent-yellow);">● DETECTED</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagCcDetail">Client probes detected</span>
+        </div>
+        <div class="sec-item">
+          <span class="sec-item-label">FIREWALL</span>
+          <span class="sec-item-status" id="diagFwStatus" style="color: var(--accent-green);">● AIR AI PORTAL ACCESSIBLE</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);" id="diagFwDetail">Inbound rules permit traffic</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fallback Access & QR Card (Section 10 & 11) -->
+    <div class="glass-panel" style="padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 260px;">
+          <div class="brand-subtitle">FALLBACK ACCESS INSTRUCTIONS (SECTION 10)</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 8px;">If Portal Does Not Open Automatically</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; margin-bottom: 14px;">
+            Certain client operating systems handle captive portals differently. Connected devices can always open the welcome portal manually:
+          </p>
+          <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glow); border-radius: 8px; padding: 12px 16px; font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent-cyan); display: inline-block; margin-bottom: 14px;" id="netFallbackUrl">
+            http://192.168.137.1/
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary btn-sm" onclick="copyClientAddress()">[ COPY URL ]</button>
+            <button class="btn btn-primary btn-sm" onclick="openModal('qrModal')">[ SHOW QR CODE ]</button>
+          </div>
+        </div>
+        <div class="qr-box" onclick="openModal('qrModal')" style="cursor: pointer;" title="Click to enlarge">
+          <img id="netTabQrImg" src="/api/network/qr" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Code Modal (Section 10) -->
+  <div class="modal-overlay" id="qrModal">
+    <div class="modal-content" style="text-align: center; max-width: 360px;">
+      <h3 style="margin-bottom: 6px;">SCAN TO CONNECT</h3>
+      <p style="color: var(--text-secondary); font-size: 0.82rem; margin-bottom: 16px;">
+        Point phone camera to join the AIR AI local intelligence network
+      </p>
+
+      <div class="qr-box" id="modalQrContainer" style="margin-bottom: 14px;">
+        <!-- Dynamic QR SVG -->
+      </div>
+
+      <div style="font-size: 1.1rem; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-mono); margin-bottom: 16px;" id="modalQrUrl">
+        http://192.168.137.1/
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <button class="btn btn-secondary btn-sm" onclick="copyClientAddress()">Copy Link</button>
+        <button class="btn btn-primary btn-sm" onclick="closeModal('qrModal')">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Inference Test Modal (Section 14) -->
+  <div class="modal-overlay" id="testAiModal">
+    <div class="modal-content" style="max-width: 520px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0;">AI Inference Host Diagnostic</h3>
+        <span class="badge-status badge-online" id="testAiBadge">ONLINE</span>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+        Sending prompt to verify real GPU inference and measure response latency.
+      </p>
+
+      <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted)">Model:</span><b id="testAiModel" style="color: var(--accent-cyan)">llama3.2</b></div>
+        <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted)">Status:</span><span id="testAiStatus">● Online</span></div>
+        <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted)">Latency:</span><b id="testAiLatency" style="color: var(--accent-cyan)">-- ms</b></div>
+        <div>
+          <span style="color: var(--text-muted); display: block; margin-bottom: 4px;">Prompt:</span>
+          <div style="background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; font-style: italic; color: var(--text-secondary);">"Say hello"</div>
+        </div>
+        <div>
+          <span style="color: var(--text-muted); display: block; margin-bottom: 4px;">Real AI Response:</span>
+          <div style="background: rgba(0,242,254,0.05); border: 1px solid rgba(0,242,254,0.2); padding: 10px; border-radius: 4px; color: var(--text-primary); line-height: 1.5; min-height: 48px; max-height: 160px; overflow-y: auto;" id="testAiResponse">
+            Waiting for response...
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('testAiModal')">Close</button>
+        <button class="btn btn-primary btn-sm" id="btnRerunAiTest" onclick="runAiInferenceTest()">[ TEST AI AGAIN ]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Switch Model Modal -->
+  <div class="modal-overlay" id="switchModelModal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 12px;">Change Local Model</h3>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+        Select an offline model compatible with host RAM and VRAM.
+      </p>
+      <div id="modelRadioList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 240px; overflow-y: auto;">
+        <!-- Populated via API -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('switchModelModal')">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmSwitchModel()">Switch & Load</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Footer Attribution -->
+  <footer style="text-align:center; padding: 20px 0 8px; color: var(--text-muted); font-size: 0.72rem; letter-spacing: 0.06em; margin-top: 32px; border-top: 1px solid var(--border-subtle);">
+    AIR AI HOST DASHBOARD &nbsp;·&nbsp;
+    <a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener" style="color: var(--accent-cyan); text-decoration: none;">HS SOLUTION</a>
+    &nbsp;·&nbsp; © 2025 HS Solution. All rights reserved.
+  </footer>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
+

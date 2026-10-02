@@ -1,0 +1,382 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AIR AI - Local Intelligence Network</title>
+  <meta name="description" content="AIR AI - Private, offline local AI network appliance by HS Solution">
+  <meta name="theme-color" content="#07090e">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/hs-ai.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      padding: 16px;
+    }
+
+    #networkCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .portal-card {
+      position: relative;
+      z-index: 10;
+      max-width: 580px;
+      width: 100%;
+      text-align: center;
+      padding: 40px 32px;
+      margin: auto;
+    }
+
+    .appliance-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .portal-logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #07090e;
+      box-shadow: 0 0 30px rgba(0, 242, 254, 0.35);
+    }
+
+    .portal-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .portal-desc {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .status-matrix {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .matrix-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .matrix-label {
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+    }
+
+    .matrix-val {
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pin-input-container {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .pin-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.3em;
+      text-align: center;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      transition: var(--transition);
+    }
+
+    .pin-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.25);
+    }
+
+    .pin-error-text {
+      color: var(--accent-red);
+      font-size: 0.8rem;
+      margin-top: 6px;
+      text-align: center;
+      display: none;
+    }
+
+    .connection-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.92rem;
+      text-align: left;
+    }
+
+    .connection-step:last-child {
+      border-bottom: none;
+    }
+
+    .step-check {
+      color: var(--accent-green);
+      font-weight: 700;
+      font-size: 1.1rem;
+      width: 22px;
+      text-align: center;
+    }
+
+    .step-loading {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(0, 242, 254, 0.3);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .offline-tagline {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 20px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 480px) {
+      .portal-card {
+        padding: 28px 20px;
+      }
+      .portal-title {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Neural Canvas Background -->
+  <canvas id="networkCanvas"></canvas>
+
+  <main class="portal-card glass-panel-glow">
+    <div class="appliance-badge">
+      <span class="pulse-dot"></span> LOCAL INTELLIGENCE NETWORK
+    </div>
+
+    <div class="portal-logo">AIR</div>
+
+    <h1 class="portal-title">
+      WELCOME TO THE<br>
+      <span class="brand-gradient">AIR AI NETWORK</span>
+    </h1>
+
+    <p class="portal-desc">
+      Dedicated offline neural appliance. Connected directly via local Wi-Fi.
+    </p>
+
+    <!-- Section 19: Appliance Status Matrix -->
+    <div class="status-matrix">
+      <div class="matrix-row">
+        <span class="matrix-label">Network Status</span>
+        <span class="matrix-val" style="color: var(--accent-green);">
+          <span class="pulse-dot"></span> <span id="netStatusText">CONNECTED</span>
+        </span>
+      </div>
+      <div class="matrix-row">
+        <span class="matrix-label">AI Engine</span>
+        <span class="matrix-val" style="color: var(--accent-cyan);">
+          <span class="pulse-dot"></span> <span id="engineStatusText">READY</span>
+        </span>
+      </div>
+      <div class="matrix-row">
+        <span class="matrix-label">Active Model</span>
+        <span class="matrix-val" style="color: var(--text-primary);" id="modelStatusText">
+          llama3.2
+        </span>
+      </div>
+      <div class="matrix-row">
+        <span class="matrix-label">Security</span>
+        <span class="matrix-val" id="securityStatusVal" style="color: var(--accent-green);">
+          ● SECURE LOCAL
+        </span>
+      </div>
+    </div>
+
+    <!-- Section 2: PIN Authentication (Dynamic based on require_pin) -->
+    <div id="pinSection" style="display: none;">
+      <div class="pin-input-container">
+        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">
+          Network Access PIN (Shown on Host Dashboard)
+        </label>
+        <input type="text" id="inputPin" class="pin-input" maxlength="6" inputmode="numeric" placeholder="●●●●●●" autocomplete="off" onkeydown="handlePinKeyDown(event)">
+        <div class="pin-error-text" id="pinError">Invalid or expired PIN. Please try again.</div>
+      </div>
+    </div>
+
+    <!-- Main Action Button -->
+    <button class="btn btn-primary" id="btnEnter" style="width: 100%; font-size: 1.05rem;" onclick="handleEnterClick()">
+      [ ENTER AIR AI ] ➔
+    </button>
+
+    <div style="display: flex; gap: 10px; margin-top: 14px;">
+      <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="openModal('networkModal')">
+        Network Info
+      </button>
+      <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="openModal('aboutModal')">
+        Privacy & Security
+      </button>
+    </div>
+
+    <div class="offline-tagline" style="margin-top: 24px; line-height: 1.6;">
+      Private &bull; Local &bull; No Internet Required
+      <div style="margin-top: 8px; font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.04em;">
+        All rights reserved HS Solution: <a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: underline;">https://hs-ai-studio.onrender.com/</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Section 20: Connection Animation Modal -->
+  <div class="modal-overlay" id="connectModal">
+    <div class="modal-content" style="max-width: 440px;">
+      <h3 style="margin-bottom: 6px;">Connecting to AIR AI...</h3>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+        Establishing encrypted session with local appliance
+      </p>
+
+      <div class="connection-step">
+        <span class="step-check" id="chk1"><div class="step-loading"></div></span>
+        <span>Local network detected</span>
+      </div>
+      <div class="connection-step">
+        <span class="step-check" id="chk2">○</span>
+        <span>AIR AI host located</span>
+      </div>
+      <div class="connection-step">
+        <span class="step-check" id="chk3">○</span>
+        <span>Secure session established</span>
+      </div>
+      <div class="connection-step">
+        <span class="step-check" id="chk4">○</span>
+        <span id="chk4Label">AI ready</span>
+      </div>
+
+      <div id="connResultMsg" style="margin-top: 20px; font-weight: 700; font-size: 0.95rem; color: var(--accent-cyan); text-align: center;">
+        Handshaking...
+      </div>
+    </div>
+  </div>
+
+  <!-- Network Info Modal -->
+  <div class="modal-overlay" id="networkModal">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0;">Network Appliance Status</h3>
+        <span class="badge-status badge-online">● Active</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Host IP:</span>
+          <b id="modalHostIp" style="color:var(--accent-cyan)">192.168.137.1</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Local Domains:</span>
+          <b style="color:var(--accent-cyan)">hs.ai &bull; hsai.local</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Supported Devices:</span>
+          <b style="color:var(--accent-green)">Android &bull; iOS &bull; Win &bull; Mac &bull; Linux</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Access Mode:</span>
+          <b>Captive Portal / HTTP</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Diagnostic Test:</span>
+          <a href="/test/captive-portal" style="color:var(--accent-cyan); font-weight:bold; text-decoration:none;">Open Network Test ➔</a>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+          <span style="color:var(--text-muted)">Public Internet:</span>
+          <b style="color:var(--accent-green)">Not Required (100% Offline)</b>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="closeModal('networkModal')">Close</button>
+    </div>
+  </div>
+
+  <!-- About / Security Modal -->
+  <div class="modal-overlay" id="aboutModal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 12px;">AIR AI Architecture</h3>
+      <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 16px;">
+        AIR AI is a fully self-contained offline intelligence appliance engineered by HS Solution. All inference runs directly on the host laptop's dedicated GPU and CPU.
+      </p>
+      <ul style="color: var(--text-secondary); font-size: 0.85rem; padding-left: 20px; line-height: 1.8; margin-bottom: 20px;">
+        <li>Zero data transmitted over the public Internet</li>
+        <li>Untrusted device isolation with per-device rate limiting</li>
+        <li>Temporary session credentials with idle timeouts</li>
+        <li>Air-gapped operation support on any device</li>
+      </ul>
+      <div style="margin-bottom: 16px; font-size: 0.78rem; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+        All rights reserved HS Solution: <a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: underline;">https://hs-ai-studio.onrender.com/</a>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="closeModal('aboutModal')">Close</button>
+    </div>
+  </div>
+
+  <script src="/static/js/portal.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AIR AI - Local Intelligence Network</title>
+  <meta name="description" content="AIR AI - Private, offline local AI chat appliance by HS Solution">
+  <meta name="theme-color" content="#07090e">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/hs-ai.css">
+  <style>
+    /* ==========================================================================
+       CHAT INTERFACE COMPONENT STYLES (3-Column Desktop, Tablet & Mobile First)
+       ========================================================================== */
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg-primary);
+    }
+
+    /* Top Appliance Navigation Bar */
+    .app-header {
+      height: 56px;
+      min-height: 56px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      gap: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .header-meta-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-pill {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .meta-pill b {
+      color: var(--text-primary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 3-Column Responsive Chat Layout */
+    .app-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 1. Left Sidebar: Conversations */
+    .sidebar-left {
+      width: 270px;
+      min-width: 270px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease, margin-left 0.25s ease;
+      z-index: 80;
+    }
+
+    .sidebar-left.collapsed {
+      margin-left: -270px;
+    }
+
+    .sidebar-header {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .conv-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .conv-item:hover, .conv-item.active {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+    }
+
+    .conv-item.active {
+      border-left: 2px solid var(--accent-cyan);
+    }
+
+    .conv-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .btn-delete-conv {
+      opacity: 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .conv-item:hover .btn-delete-conv {
+      opacity: 1;
+    }
+
+    .btn-delete-conv:hover {
+      color: var(--accent-red);
+    }
+
+    /* 2. Center Column: Chat Main */
+    .chat-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Reconnection Banner */
+    .reconnect-bar {
+      display: none;
+      background: rgba(239, 68, 68, 0.15);
+      border-bottom: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--accent-red);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 6px 16px;
+      text-align: center;
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px 140px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .message-row {
+      display: flex;
+      max-width: 820px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 14px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .msg-avatar-user {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .msg-avatar-ai {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+      color: #07090e;
+    }
+
+    .msg-content-wrapper {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .msg-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .msg-bubble {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .msg-bubble p:not(:last-child) {
+      margin-bottom: 10px;
+    }
+
+    .msg-bubble pre {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 14px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      margin: 8px 0;
+    }
+
+    .msg-bubble code {
+      font-family: var(--font-mono);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 0.84em;
+    }
+
+    /* Fixed Composer Dock */
+    .composer-dock {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, transparent 0%, var(--bg-primary) 30%);
+      padding: 12px 16px 16px;
+      z-index: 50;
+    }
+
+    .composer-inner {
+      max-width: 820px;
+      margin: 0 auto;
+      background: var(--bg-glass-dock);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+
+    .composer-inner:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .attachment-preview {
+      display: none;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid var(--border-subtle);
+      align-items: center;
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+
+    .attachment-preview img {
+      max-height: 48px;
+      max-width: 64px;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+
+    .composer-input-row {
+      display: flex;
+      align-items: flex-end;
+      padding: 8px 12px;
+      gap: 8px;
+    }
+
+    .composer-textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      resize: none;
+      max-height: 140px;
+      min-height: 24px;
+      line-height: 1.4;
+      padding: 4px 0;
+      outline: none;
+    }
+
+    .composer-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .composer-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 12px 8px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* 3. Right Sidebar: AI & Network Inspector */
+    .sidebar-right {
+      width: 290px;
+      min-width: 290px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease, margin-right 0.25s ease;
+      z-index: 80;
+      padding: 16px;
+      overflow-y: auto;
+      gap: 16px;
+    }
+
+    .sidebar-right.collapsed {
+      margin-right: -290px;
+    }
+
+    .inspector-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.82rem;
+    }
+
+    .inspector-card-header {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inspector-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Mobile Backdrops */
+    .drawer-backdrop {
+      display: none;
+      position: fixed;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 75;
+    }
+
+    .drawer-backdrop.active {
+      display: block;
+    }
+
+    /* Responsive Breakpoints (Phone, Tablet & Small Screen Layouts) */
+    @media (max-width: 1024px) {
+      .sidebar-right {
+        position: fixed;
+        right: 0;
+        top: 56px;
+        bottom: 0;
+        margin-right: -290px;
+        box-shadow: -10px 0 25px rgba(0, 0, 0, 0.5);
+      }
+      .sidebar-right.open {
+        margin-right: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-header {
+        height: 52px;
+        min-height: 52px;
+        padding: 0 10px;
+      }
+      .sidebar-left {
+        position: fixed;
+        left: 0;
+        top: 52px;
+        bottom: 0;
+        margin-left: -270px;
+        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.5);
+      }
+      .sidebar-left.open {
+        margin-left: 0;
+      }
+      .sidebar-right {
+        top: 52px;
+      }
+      .drawer-backdrop {
+        top: 52px;
+        cursor: pointer;
+      }
+      .header-meta-pills {
+        display: none;
+      }
+      .messages-container {
+        padding: 12px 10px calc(130px + env(safe-area-inset-bottom, 16px));
+      }
+      .message-row {
+        gap: 10px;
+        width: 100%;
+      }
+      .msg-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 0.72rem;
+      }
+      .msg-bubble {
+        padding: 10px 13px;
+        font-size: 0.92rem;
+      }
+      .composer-dock {
+        padding: 6px 10px max(10px, env(safe-area-inset-bottom, 10px));
+      }
+      .composer-textarea {
+        font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+        max-height: 100px;
+      }
+      .composer-footer .desktop-hint {
+        display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header-brand span:first-child {
+        font-size: 1rem;
+      }
+      .btn-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+      }
+      #btnSend, #btnStop {
+        padding: 6px 12px;
+        font-size: 0.88rem;
+      }
+      .empty-welcome-card {
+        padding: 14px 6px !important;
+      }
+      .empty-welcome-card h2 {
+        font-size: 1.35rem !important;
+      }
+      .composer-footer {
+        font-size: 0.68rem;
+        padding: 3px 8px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Reconnection Banner (Section 24) -->
+  <div class="reconnect-bar" id="reconnectBanner">
+    AIR AI HOST DISCONNECTED — Attempting to reconnect...
+  </div>
+
+  <!-- Top Appliance Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="btn-icon" id="btnToggleLeft" onclick="toggleLeftSidebar()" title="Toggle History">☰</button>
+      <a href="/" class="header-brand">
+        <span>AIR AI</span>
+        <span class="badge-status badge-online">
+          <span class="pulse-dot"></span> LOCAL
+        </span>
+      </a>
+
+      <!-- Real-Time Metrics (Section 21) -->
+      <div class="header-meta-pills">
+        <div class="meta-pill">
+          Model: <b id="hdrModelName">llama3.2</b>
+        </div>
+        <div class="meta-pill">
+          Network: <b style="color: var(--accent-green)">Protected Local</b>
+        </div>
+        <div class="meta-pill">
+          Latency: <b id="hdrLatency">-- ms</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn btn-secondary btn-sm" onclick="startNewChat()">
+        + New Chat
+      </button>
+      <!-- Theme Switcher (Section 23) -->
+      <button class="btn-icon" onclick="cycleTheme()" title="Switch Theme (Dark / Light / System)" id="btnThemeToggle">
+        🌓
+      </button>
+      <button class="btn-icon" onclick="openModal('settingsModal')" title="Settings & Diagnostics">
+        ⚙
+      </button>
+      <button class="btn-icon" id="btnToggleRight" onclick="toggleRightSidebar()" title="Toggle AI / Network Inspector">
+        ℹ
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Backdrop -->
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeAllDrawers()"></div>
+
+  <!-- 3-Column Layout -->
+  <div class="app-body">
+    <!-- Left Column: Conversations Drawer/Sidebar (Section 17) -->
+    <aside class="sidebar-left" id="sidebarLeft">
+      <div class="sidebar-header">
+        <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="startNewChat()">
+          + Start New Chat
+        </button>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+          Saved Conversations
+        </div>
+      </div>
+      <div class="conv-list" id="convList">
+        <!-- Rendered dynamically -->
+      </div>
+      <div style="padding: 12px; border-top: 1px solid var(--border-subtle); font-size: 0.72rem; color: var(--text-muted); text-align: center; line-height: 1.4;">
+        AIR AI Appliance &bull; <a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: none;">HS Solution</a>
+      </div>
+    </aside>
+
+    <!-- Center Column: Messages Feed & Composer -->
+    <main class="chat-center">
+      <div class="messages-container" id="messagesViewport">
+        <!-- Welcome intro card when conversation is empty -->
+        <div id="emptyWelcome" class="empty-welcome-card" style="text-align: center; margin: auto; max-width: 520px; padding: 24px 16px;">
+          <div class="portal-logo" style="width: 54px; height: 54px; font-size: 1.5rem; margin-bottom: 12px;">AIR</div>
+          <div class="brand-subtitle" style="margin-bottom: 6px;">LOCAL INTELLIGENCE NETWORK</div>
+          <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 10px;">Private Offline AIR AI</h2>
+          <p style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6; margin-bottom: 16px;">
+            All inference runs locally on the host laptop's GPU. Prompts and conversations never leave the private Wi-Fi network.
+          </p>
+          <div style="margin-bottom: 20px; font-size: 0.76rem; color: var(--text-muted);">
+            All rights reserved HS Solution: <a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: underline;">https://hs-ai-studio.onrender.com/</a>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="usePrompt('Explain how an air-gapped offline local LLM operates')">"How offline LLMs work"</button>
+            <button class="btn btn-secondary btn-sm" onclick="usePrompt('Analyze the difference between symmetric and asymmetric encryption')">"Explain encryption basics"</button>
+            <button class="btn btn-secondary btn-sm" onclick="usePrompt('Write a clean Python script for local network discovery')">"Python network discovery"</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composer Input Dock (Section 16: Mobile-first & Desktop) -->
+      <div class="composer-dock">
+        <div class="composer-inner">
+          <!-- Attachment Preview -->
+          <div class="attachment-preview" id="attachmentPreview">
+            <img id="previewImg" src="" alt="Attachment">
+            <span id="previewName" style="color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+            <button class="btn-icon" style="width: 28px; height: 28px;" onclick="clearAttachment()" title="Remove file">✕</button>
+          </div>
+
+          <div class="composer-input-row">
+            <!-- File Attachment Button -->
+            <input type="file" id="fileInput" accept="image/*,.txt,.pdf,.py,.json,.md,.csv" style="display: none;" onchange="handleFileUpload(event)">
+            <button class="btn-icon" title="Attach file or image" onclick="document.getElementById('fileInput').click()">
+              📎
+            </button>
+
+            <!-- Textarea -->
+            <textarea id="chatInput" class="composer-textarea" placeholder="Ask AIR AI..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+
+            <!-- Send / Stop Actions -->
+            <button class="btn btn-primary" id="btnSend" onclick="sendMessage()" style="min-height: 38px; padding: 6px 16px;">
+              Send ➔
+            </button>
+            <button class="btn btn-danger" id="btnStop" onclick="stopGeneration()" style="display: none; min-height: 38px; padding: 6px 16px;">
+              ■ Stop
+            </button>
+          </div>
+
+          <div class="composer-footer">
+            <span><span class="desktop-hint">Enter to send &bull; Shift + Enter for newline &bull; </span><a href="https://hs-ai-studio.onrender.com/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: none;">All rights reserved HS Solution</a></span>
+            <span id="tokenSpeedBadge" style="color: var(--accent-cyan); font-weight: 600;">Ready</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Column: AI / Network Inspector (Section 17) -->
+    <aside class="sidebar-right" id="sidebarRight">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+        <h4 style="font-size: 0.85rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;">APPLIANCE STATUS</h4>
+        <button class="btn-icon" style="width: 28px; height: 28px;" onclick="toggleRightSidebar()">✕</button>
+      </div>
+
+      <!-- AI Engine Card -->
+      <div class="inspector-card">
+        <div class="inspector-card-header">
+          <span>AI Inference</span>
+          <span class="badge-status badge-online" id="inspAiBadge">● Ready</span>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Model:</span>
+          <b id="inspModelName" style="color:var(--accent-cyan)">llama3.2</b>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Inference Speed:</span>
+          <b><span id="inspSpeed">0</span> tok/s</b>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Tokens Generated:</span>
+          <b id="inspTokens">0</b>
+        </div>
+      </div>
+
+      <!-- Network Security Card (Section 28) -->
+      <div class="inspector-card">
+        <div class="inspector-card-header">
+          <span>Network Security</span>
+          <span class="badge-status badge-online">● Protected</span>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Local Network:</span>
+          <b style="color:var(--accent-green)">Protected Only</b>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Public Internet:</span>
+          <b style="color:var(--accent-red)">Not Exposed</b>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Host IP:</span>
+          <span id="inspHostIp" style="font-family:var(--font-mono); color:var(--accent-cyan)">192.168.137.1</span>
+        </div>
+        <div class="inspector-row">
+          <span style="color:var(--text-muted)">Session Latency:</span>
+          <span id="inspLatency" style="font-family:var(--font-mono)">-- ms</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto;">
+        <button class="btn btn-secondary btn-sm" onclick="openModal('settingsModal')">
+          ⚙ Settings & Diagnostics
+        </button>
+        <a href="/dashboard" class="btn btn-secondary btn-sm" target="_blank" style="text-align: center;">
+          Host Dashboard ↗
+        </a>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Settings & Diagnostics Modal (Section 15, 22, 23) -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0;">Settings & Diagnostics</h3>
+        <button class="btn-icon" style="width: 32px; height: 32px;" onclick="closeModal('settingsModal')">✕</button>
+      </div>
+
+      <!-- Theme Selector (Section 23) -->
+      <div style="margin-bottom: 16px;">
+        <label style="display:block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+          Appearance Theme
+        </label>
+        <select id="themeSelect" onchange="applyTheme(this.value)" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 8px 12px; border-radius: 6px; font-size: 0.9rem;">
+          <option value="system">System Preference (Auto)</option>
+          <option value="dark">Dark (Flagship Appliance)</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+
+      <!-- Inference Temperature -->
+      <div style="margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+          <span>Sampling Temperature</span>
+          <span id="tempVal" style="color: var(--accent-cyan);">0.7</span>
+        </div>
+        <input type="range" id="tempSlider" min="0" max="1.5" step="0.05" value="0.7" style="width: 100%; accent-color: var(--accent-cyan);" oninput="document.getElementById('tempVal').innerText = this.value">
+      </div>
+
+      <!-- Connection Diagnostics (Section 15) -->
+      <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-subtle);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+            Connection Diagnostics
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="updateClientDiagnostics()" style="padding: 2px 8px; font-size: 0.72rem;">
+            Refresh ⟳
+          </button>
+        </div>
+        <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px 12px; font-size: 0.78rem; font-family: var(--font-mono); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">Host:</span><span id="diagClientHost" style="color:var(--text-primary)">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">Frontend:</span><span id="diagClientFrontend" style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; max-width:200px;">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">API:</span><span id="diagClientApi" style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; max-width:200px;">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">WebSocket:</span><span id="diagClientWs" style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; max-width:200px;">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">Model:</span><span id="diagClientModel" style="color:var(--accent-green)">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">Status:</span><span id="diagClientStatus" style="color:var(--accent-green)">--</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted)">Latency:</span><span id="diagClientLatency" style="color:var(--accent-cyan)">-- ms</span></div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('settingsModal')">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/chat.js"></script>
+</body>
+</html>
