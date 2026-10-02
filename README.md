@@ -1,4 +1,4 @@
-# AIR AI Network ⚡
+# AIR AI Network 
 ### Portable Offline AI Appliance for Any Device · Zero Internet Required
 
 **AIR AI** transforms any Windows laptop into a standalone, air-gapped, offline AI server appliance running directly from a portable USB drive. By leveraging the host laptop's Windows Mobile Hotspot and local GPU/CPU compute, any smartphone, tablet, laptop, or PC connecting to the Wi-Fi gets instant, private, offline access to high-performance AI models through their standard web browser—**zero Internet connection or app installation required**.
@@ -39,7 +39,7 @@
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 * **100% Offline & Private:** Operates completely air-gapped with no cloud dependencies, no external telemetry, and zero tracking. Your prompts never leave your local hotspot.
 * **Universal Device Compatibility:** Responsive interface optimized for all screen sizes—Android (Samsung, Realme, OnePlus, Xiaomi, Pixel), iOS (iPhone, iPad), Windows, macOS, and Linux.
@@ -61,7 +61,7 @@
 
 ---
 
-## 💾 How to Download and Setup AIR AI on a USB Drive
+##  How to Download and Setup AIR AI on a USB Drive
 
 Follow these step-by-step instructions to create a self-contained AIR AI USB drive.
 
@@ -117,7 +117,7 @@ The project includes a built-in automated installer and model downloader.
 
 ---
 
-## 📂 Project Directory Structure
+##  Project Directory Structure
 
 ```text
 AIR-AI/
@@ -229,7 +229,7 @@ AIR-AI/
 
 ---
 
-## ⚡ How to Run AIR AI
+##  How to Run AIR AI
 
 ### 1. Enable Windows Mobile Hotspot
 1. On your Windows laptop, open **Settings** (`Win + I`).
@@ -263,7 +263,7 @@ AIR-AI/
 
 ---
 
-## 🛡️ Host Administration & Telemetry Dashboard
+##  Host Administration & Telemetry Dashboard
 
 Access the host management dashboard directly on the host laptop:
 ```text
@@ -282,7 +282,7 @@ http://192.168.137.1:8000/dashboard
 
 ---
 
-## 🧪 Testing & Verification
+##  Testing & Verification
 
 Run the comprehensive 33-test automated test suite:
 
@@ -299,7 +299,7 @@ The test suite validates:
 
 ---
 
-## 📜 Brand & Attribution
+##  Brand & Attribution
 
 * **Project:** AIR AI Network
 * **Subtitle:** Portable Local Intelligence Network Appliance
