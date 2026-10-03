@@ -174,9 +174,10 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                 user_payload["images"] = images
             messages = [user_payload]
 
-            # Web Search Execution
+            # Web Search & Real-Time Temporal Context Execution
             web_search = bool(data.get("web_search", False))
-            if web_search and user_message:
+            should_search = web_search or WebSearchEngine.is_live_query(user_message)
+            if should_search and user_message:
                 try:
                     await websocket.send_json({
                         "type": "status",
@@ -194,9 +195,17 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                         })
                         search_ctx = WebSearchEngine.format_search_context(search_data)
                         messages.insert(0, {"role": "system", "content": search_ctx})
-                        logger.info(f"[WS CHAT] Injected {len(search_data['results'])} web search results into context.")
+                        logger.info(f"[WS CHAT] Injected {len(search_data['results'])} live web search results into context.")
+                    else:
+                        temporal_ctx = WebSearchEngine.get_temporal_header()
+                        messages.insert(0, {"role": "system", "content": temporal_ctx})
                 except Exception as se:
                     logger.warning(f"[WS CHAT] Web search error: {se}")
+                    temporal_ctx = WebSearchEngine.get_temporal_header()
+                    messages.insert(0, {"role": "system", "content": temporal_ctx})
+            else:
+                temporal_ctx = WebSearchEngine.get_temporal_header()
+                messages.insert(0, {"role": "system", "content": temporal_ctx})
 
             # Signal queue status to client
             await websocket.send_json({

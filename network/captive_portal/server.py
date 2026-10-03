@@ -130,18 +130,44 @@ class DedicatedCaptivePortalServer:
             "/canonical.html", "/success.txt"
         }
 
-        # Check if root path '/' or arbitrary path with external Host header (e.g. user typed google.com)
+        # Determine actual local IP this client connected to
+        target_ip = self.host_ip
+        try:
+            sock_ip = client_sock.getsockname()[0]
+            if sock_ip and sock_ip not in ("0.0.0.0", "127.0.0.1"):
+                target_ip = sock_ip
+        except Exception:
+            pass
+
+        # Destination paths that must NEVER be redirected (prevent loops)
+        NON_REDIRECT_PREFIXES = (
+            "/chat", "/welcome", "/api", "/ws", "/assets", "/js", "/css",
+            "/static", "/favicon.ico", "/sw.js", "/manifest.json"
+        )
+        is_dest_path = any(
+            path == p or path.startswith(p + "/") or path.startswith(p + "?")
+            for p in NON_REDIRECT_PREFIXES
+        )
+
+        # Check if user typed an external domain (e.g. google.com, apple.com)
         is_external_host = False
-        for line in initial_client_data.split(b"\r\n")[1:]:
-            if line.lower().startswith(b"host:"):
-                host_val = line.split(b":", 1)[1].strip().decode("latin-1", errors="ignore").split(":")[0]
-                if host_val and host_val.lower() not in (self.host_ip, "127.0.0.1", "localhost", "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"):
-                    is_external_host = True
-                break
+        if not is_dest_path:
+            for line in initial_client_data.split(b"\r\n")[1:]:
+                if line.lower().startswith(b"host:"):
+                    host_val = line.split(b":", 1)[1].strip().decode("latin-1", errors="ignore").split(":")[0]
+                    known_hosts = (
+                        target_ip.lower(), self.host_ip.lower(), "127.0.0.1", "localhost",
+                        "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"
+                    )
+                    if host_val and host_val.lower() not in known_hosts:
+                        # If it's a private network IP, don't treat it as external
+                        if not re.match(r"^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)", host_val):
+                            is_external_host = True
+                    break
 
         # 1. Direct fast-path for /connectivity-check
         if path == "/connectivity-check":
-            data = json.dumps({"status": "captive_portal_active", "host_ip": self.host_ip}).encode()
+            data = json.dumps({"status": "captive_portal_active", "host_ip": target_ip}).encode()
             resp = (
                 b"HTTP/1.1 200 OK\r\n"
                 b"Content-Type: application/json\r\n"
@@ -180,8 +206,9 @@ class DedicatedCaptivePortalServer:
                 pass
             return
 
-        if path in probe_paths or is_external_host:
-            dest = f"http://{self.host_ip}/chat"
+        # 3. Captive portal probe redirect (ONLY for probes or external domains, NEVER for /chat)
+        if not is_dest_path and (path in probe_paths or is_external_host):
+            dest = f"http://{target_ip}/chat"
             html = (
                 f'<!DOCTYPE html><html><head><meta charset="utf-8">'
                 f'<meta http-equiv="refresh" content="0; url={dest}">'

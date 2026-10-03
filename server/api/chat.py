@@ -108,23 +108,32 @@ async def chat_endpoint(payload: ChatRequest, request: Request, authorization: O
     logger.info(f"[SERVER] Request received from {client_ip}")
     logger.info(f"[SERVER] Conversation: {conv_id}")
 
-    # Web Search Injection
+    # Real-Time Web Search & Temporal Context Injection
     search_data = None
-    if payload.web_search:
-        last_query = ""
-        for m in reversed(messages):
-            if m.get("role") == "user" and m.get("content"):
-                last_query = m["content"]
-                break
-        if last_query:
-            try:
-                search_data = WebSearchEngine.search(last_query, max_results=5)
-                if search_data.get("success"):
-                    search_ctx = WebSearchEngine.format_search_context(search_data)
-                    messages.insert(0, {"role": "system", "content": search_ctx})
-                    logger.info(f"[CHAT] Injected {len(search_data['results'])} web search results into prompt context.")
-            except Exception as se:
-                logger.warning(f"[CHAT] Web search execution error: {se}")
+    last_query = ""
+    for m in reversed(messages):
+        if m.get("role") == "user" and m.get("content"):
+            last_query = m["content"]
+            break
+
+    should_search = payload.web_search or (last_query and WebSearchEngine.is_live_query(last_query))
+    if should_search and last_query:
+        try:
+            search_data = WebSearchEngine.search(last_query, max_results=5)
+            if search_data.get("success"):
+                search_ctx = WebSearchEngine.format_search_context(search_data)
+                messages.insert(0, {"role": "system", "content": search_ctx})
+                logger.info(f"[CHAT] Injected {len(search_data['results'])} live web search results into prompt context.")
+            else:
+                temporal_ctx = WebSearchEngine.get_temporal_header()
+                messages.insert(0, {"role": "system", "content": temporal_ctx})
+        except Exception as se:
+            logger.warning(f"[CHAT] Web search execution error: {se}")
+            temporal_ctx = WebSearchEngine.get_temporal_header()
+            messages.insert(0, {"role": "system", "content": temporal_ctx})
+    else:
+        temporal_ctx = WebSearchEngine.get_temporal_header()
+        messages.insert(0, {"role": "system", "content": temporal_ctx})
 
     # Determine model
     target_model = payload.model or model_mgr.active_model_id
