@@ -170,8 +170,50 @@ function initWebSocket() {
   }
 }
 
+let isWebSearchEnabled = true;
+
+function toggleWebSearch() {
+  isWebSearchEnabled = !isWebSearchEnabled;
+  const btn = document.getElementById("btnWebSearch");
+  const input = document.getElementById("chatInput");
+  if (btn) {
+    if (isWebSearchEnabled) {
+      btn.classList.add("active");
+      btn.innerHTML = '🌐 <span class="web-toggle-text">Web ON</span>';
+      btn.title = "Web Search ON: Real-time web results enabled";
+      if (input) input.placeholder = "Ask AIR AI (Web search enabled)...";
+    } else {
+      btn.classList.remove("active");
+      btn.innerHTML = '🌐 <span class="web-toggle-text">Web OFF</span>';
+      btn.title = "Web Search OFF: Answering strictly from local weights";
+      if (input) input.placeholder = "Ask AIR AI (Offline local mode)...";
+    }
+  }
+}
+
+function renderWebSearchResults(query, results) {
+  const assistantBubbles = document.querySelectorAll(".msg-assistant-bubble");
+  if (assistantBubbles.length === 0) return;
+  const lastBubble = assistantBubbles[assistantBubbles.length - 1];
+
+  if (lastBubble.parentElement.querySelector(".web-search-banner")) return;
+
+  const banner = document.createElement("div");
+  banner.className = "web-search-banner";
+  let sourcesHtml = "";
+  if (results && results.length > 0) {
+    sourcesHtml = '<div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:4px;">' +
+      results.map((r, i) => `<a class="web-source-chip" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(r.snippet || r.title)}">🔗 ${escapeHtml(r.title)}</a>`).join("") +
+      '</div>';
+  }
+  banner.innerHTML = `<div><b>🌐 Searched web:</b> <i>"${escapeHtml(query)}"</i> (${results ? results.length : 0} results)</div>${sourcesHtml}`;
+  lastBubble.parentElement.insertBefore(banner, lastBubble);
+}
+
 function handleIncomingWsMessage(data) {
-  if (data.type === "token") {
+  if (data.type === "search_results") {
+    renderWebSearchResults(data.query, data.results);
+  } else if (data.type === "token") {
     appendStreamingToken(data.token);
     totalTokensGenerated++;
     const tokensEl = document.getElementById("inspTokens");
@@ -235,7 +277,8 @@ async function sendMessage() {
     message: rawText,
     messages: conv.messages.map(m => ({ role: m.role, content: m.content })),
     temperature: getTemperatureSetting(),
-    stream: true
+    stream: true,
+    web_search: isWebSearchEnabled
   };
   lastFailedPayload = payload;
 
@@ -247,7 +290,8 @@ async function sendMessage() {
         prompt: rawText,
         model: activeModelId,
         conversation_id: conv.id,
-        temperature: payload.temperature
+        temperature: payload.temperature,
+        web_search: isWebSearchEnabled
       }));
     } catch (e) {
       console.warn("[WS] Send failed, switching to HTTP SSE fallback:", e);
@@ -365,6 +409,9 @@ async function fallbackHttpStream(payload) {
           const raw = line.slice(6).trim();
           try {
             const parsed = JSON.parse(raw);
+            if (parsed.type === "search_results") {
+              renderWebSearchResults(parsed.query, parsed.results);
+            }
             if (parsed.error) {
               handleStreamError(parsed.error);
               return;

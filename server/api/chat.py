@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import time
 import uuid
@@ -16,6 +16,7 @@ from ..security.sanitizer import (
     validate_conversation_id,
     validate_model_name
 )
+from ..web_search import WebSearchEngine
 from .security_api import get_request_token
 
 logger = logging.getLogger("hs_ai.chat")
@@ -36,6 +37,7 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = 0.7
     stream: Optional[bool] = True
     images: Optional[List[str]] = None
+    web_search: Optional[bool] = False
 
 class TestInferenceRequest(BaseModel):
     prompt: Optional[str] = "Say hello"
@@ -106,6 +108,24 @@ async def chat_endpoint(payload: ChatRequest, request: Request, authorization: O
     logger.info(f"[SERVER] Request received from {client_ip}")
     logger.info(f"[SERVER] Conversation: {conv_id}")
 
+    # Web Search Injection
+    search_data = None
+    if payload.web_search:
+        last_query = ""
+        for m in reversed(messages):
+            if m.get("role") == "user" and m.get("content"):
+                last_query = m["content"]
+                break
+        if last_query:
+            try:
+                search_data = WebSearchEngine.search(last_query, max_results=5)
+                if search_data.get("success"):
+                    search_ctx = WebSearchEngine.format_search_context(search_data)
+                    messages.insert(0, {"role": "system", "content": search_ctx})
+                    logger.info(f"[CHAT] Injected {len(search_data['results'])} web search results into prompt context.")
+            except Exception as se:
+                logger.warning(f"[CHAT] Web search execution error: {se}")
+
     # Determine model
     target_model = payload.model or model_mgr.active_model_id
     if not target_model:
@@ -138,6 +158,16 @@ async def chat_endpoint(payload: ChatRequest, request: Request, authorization: O
 
     async def token_generator():
         try:
+            # Emit search results metadata if web search was performed
+            if search_data and search_data.get("success"):
+                search_event = json.dumps({
+                    "type": "search_results",
+                    "query": search_data["query"],
+                    "results": search_data["results"],
+                    "conversation_id": conv_id
+                })
+                yield f"data: {search_event}\n\n"
+
             async for token in model_mgr.current_adapter.chat_stream(
                 model_id=target_model,
                 messages=messages,
@@ -176,11 +206,14 @@ async def chat_endpoint(payload: ChatRequest, request: Request, authorization: O
             
             logger.info("[MODEL] Generation completed")
             logger.info("[SERVER] Response sent")
-            return {
+            res_payload = {
                 "response": "".join(output_tokens),
                 "model": target_model,
                 "conversation_id": conv_id
             }
+            if search_data and search_data.get("success"):
+                res_payload["search_results"] = search_data["results"]
+            return res_payload
         except Exception as e:
             logger.error(f"[MODEL] Generation error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -301,4 +334,15 @@ async def save_settings(request: Request, authorization: Optional[str] = Header(
         return {"status": "ok"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/search")
+async def web_search_get(q: str):
+    """Direct Web Search API endpoint."""
+    return WebSearchEngine.search(q, max_results=5)
+
+@router.post("/search")
+async def web_search_post(payload: Dict[str, Any]):
+    """Direct Web Search API endpoint."""
+    q = payload.get("q") or payload.get("query", "")
+    return WebSearchEngine.search(q, max_results=5)
 

@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 import socket
 import logging
 import threading
@@ -97,19 +98,7 @@ class DedicatedCaptivePortalServer:
                 logger.debug(f"Proxy accept error: {e}")
 
     def _handle_client(self, client_sock: socket.socket, client_addr: tuple):
-        client_ip = client_addr[0]
-        backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            backend_sock.connect(("127.0.0.1", self.api_port))
-        except Exception as e:
-            logger.debug(f"Failed to connect to backend on port {self.api_port}: {e}")
-            try:
-                client_sock.close()
-            except Exception:
-                pass
-            return
-
-        # Pre-read initial packet to inject X-Forwarded-For header
+        # Pre-read initial packet to inspect request and inject X-Forwarded-For header
         initial_client_data = b""
         try:
             client_sock.settimeout(2.0)
@@ -118,35 +107,212 @@ class DedicatedCaptivePortalServer:
         except Exception:
             pass
 
-        if initial_client_data:
-            # Check if this is an HTTP request and inject real client IP
+        if not initial_client_data:
             try:
-                if b"\r\n\r\n" in initial_client_data:
-                    parts = initial_client_data.split(b"\r\n\r\n", 1)
-                    header_block = parts[0].decode("latin-1", errors="replace")
-                    body_rest = parts[1] if len(parts) > 1 else b""
-
-                    # Extract user-agent for client classification
-                    ua = ""
-                    for line in header_block.split("\r\n"):
-                        if line.lower().startswith("user-agent:"):
-                            ua = line.split(":", 1)[1].strip()
-                            break
-
-                    if self.detector:
-                        self.detector.register_or_update(client_ip, ua)
-
-                    # Inject X-Forwarded-For and X-Real-IP
-                    forwarded_header = f"\r\nX-Forwarded-For: {client_ip}\r\nX-Real-IP: {client_ip}\r\nX-Forwarded-Proto: http"
-                    new_header_block = header_block + forwarded_header
-                    initial_client_data = new_header_block.encode("latin-1") + b"\r\n\r\n" + body_rest
+                client_sock.close()
             except Exception:
                 pass
+            return
 
+        # Fast-path for captive portal probes and external domain requests
+        first_line = initial_client_data.split(b"\r\n")[0].decode("latin-1", errors="ignore")
+        method, path = "", ""
+        parts = first_line.split()
+        if len(parts) >= 2:
+            method, path = parts[0].upper(), parts[1]
+
+        probe_paths = {
+            "/generate_204", "/gen_204", "/generate204",
+            "/hotspot-detect.html", "/hotspotdetect.html",
+            "/connecttest.txt", "/msftconnecttest.txt", "/ncsi.txt",
+            "/check_network_status.txt", "/library/test/success.html",
+            "/mobile/status.php", "/wifi/status", "/ptlogin/status",
+            "/canonical.html", "/success.txt"
+        }
+
+        # Check if root path '/' or arbitrary path with external Host header (e.g. user typed google.com)
+        is_external_host = False
+        for line in initial_client_data.split(b"\r\n")[1:]:
+            if line.lower().startswith(b"host:"):
+                host_val = line.split(b":", 1)[1].strip().decode("latin-1", errors="ignore").split(":")[0]
+                if host_val and host_val.lower() not in (self.host_ip, "127.0.0.1", "localhost", "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"):
+                    is_external_host = True
+                break
+
+        # 1. Direct fast-path for /connectivity-check
+        if path == "/connectivity-check":
+            data = json.dumps({"status": "captive_portal_active", "host_ip": self.host_ip}).encode()
+            resp = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+                b"Connection: close\r\n\r\n" + data
+            )
             try:
-                backend_sock.sendall(initial_client_data)
+                client_sock.sendall(resp)
+                try:
+                    client_sock.shutdown(socket.SHUT_WR)
+                except Exception:
+                    pass
+                client_sock.close()
             except Exception:
                 pass
+            return
+
+        # 2. Direct fast-path for /welcome
+        if path == "/welcome":
+            portal_file = (Path(self.base_dir) / "frontend" / "portal.html") if self.base_dir else None
+            content = portal_file.read_bytes() if (portal_file and portal_file.exists()) else b"<h1>AIR AI NETWORK</h1>"
+            resp = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: text/html; charset=utf-8\r\n"
+                b"Content-Length: " + str(len(content)).encode() + b"\r\n"
+                b"Connection: close\r\n\r\n" + content
+            )
+            try:
+                client_sock.sendall(resp)
+                try:
+                    client_sock.shutdown(socket.SHUT_WR)
+                except Exception:
+                    pass
+                client_sock.close()
+            except Exception:
+                pass
+            return
+
+        if path in probe_paths or is_external_host:
+            dest = f"http://{self.host_ip}/chat"
+            html = (
+                f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+                f'<meta http-equiv="refresh" content="0; url={dest}">'
+                f'<script>window.location.replace("{dest}");</script></head>'
+                f'<body style="font-family:sans-serif;background:#090d16;color:#e2e8f0;text-align:center;padding:2rem;">'
+                f'<p>Connecting to AIR AI...</p><p><a href="{dest}" style="color:#2dd4bf;">Click here if not redirected</a></p></body></html>'
+            )
+            resp = (
+                b"HTTP/1.1 302 Found\r\n"
+                b"Location: " + dest.encode() + b"\r\n"
+                b"Cache-Control: no-cache, no-store, must-revalidate, max-age=0\r\n"
+                b"Pragma: no-cache\r\n"
+                b"Expires: 0\r\n"
+                b"Content-Type: text/html\r\n"
+                b"Content-Length: " + str(len(html)).encode() + b"\r\n"
+                b"Connection: close\r\n\r\n" + html.encode()
+            )
+            try:
+                client_sock.sendall(resp)
+                try:
+                    client_sock.shutdown(socket.SHUT_WR)
+                except Exception:
+                    pass
+                client_sock.close()
+            except Exception:
+                pass
+            return
+
+        backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        backend_sock.settimeout(0.5)
+        try:
+            backend_sock.connect(("127.0.0.1", self.api_port))
+            backend_sock.settimeout(None)
+        except Exception as e:
+            logger.debug(f"Failed to connect to backend on port {self.api_port}: {e}")
+            try:
+                # 1. Connectivity Check API
+                if path == "/connectivity-check":
+                    data = json.dumps({"status": "captive_portal_active", "host_ip": self.host_ip}).encode()
+                    resp = (
+                        b"HTTP/1.1 200 OK\r\n"
+                        b"Content-Type: application/json\r\n"
+                        b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+                        b"Connection: close\r\n\r\n" + data
+                    )
+                    client_sock.sendall(resp)
+                    try:
+                        client_sock.shutdown(socket.SHUT_WR)
+                    except Exception:
+                        pass
+                    client_sock.close()
+                    return
+
+                # 2. Welcome Portal Page
+                if path == "/welcome":
+                    portal_file = (Path(self.base_dir) / "frontend" / "portal.html") if self.base_dir else None
+                    content = portal_file.read_bytes() if (portal_file and portal_file.exists()) else b"<h1>AIR AI NETWORK</h1>"
+                    resp = (
+                        b"HTTP/1.1 200 OK\r\n"
+                        b"Content-Type: text/html; charset=utf-8\r\n"
+                        b"Content-Length: " + str(len(content)).encode() + b"\r\n"
+                        b"Connection: close\r\n\r\n" + content
+                    )
+                    client_sock.sendall(resp)
+                    try:
+                        client_sock.shutdown(socket.SHUT_WR)
+                    except Exception:
+                        pass
+                    client_sock.close()
+                    return
+
+                # 3. Chat / Root Page
+                if path in ("/", "/chat"):
+                    chat_file = (Path(self.base_dir) / "frontend" / "chat.html") if self.base_dir else None
+                    content = chat_file.read_bytes() if (chat_file and chat_file.exists()) else b"<h1>AIR AI</h1>"
+                    resp = (
+                        b"HTTP/1.1 200 OK\r\n"
+                        b"Content-Type: text/html; charset=utf-8\r\n"
+                        b"Content-Length: " + str(len(content)).encode() + b"\r\n"
+                        b"Connection: close\r\n\r\n" + content
+                    )
+                    client_sock.sendall(resp)
+                    try:
+                        client_sock.shutdown(socket.SHUT_WR)
+                    except Exception:
+                        pass
+                    client_sock.close()
+                    return
+
+                # 4. Fallback 302
+                dest = f"http://{self.host_ip}/chat"
+                client_sock.sendall(
+                    f"HTTP/1.1 302 Found\r\nLocation: {dest}\r\nConnection: close\r\n\r\n".encode()
+                )
+                try:
+                    client_sock.shutdown(socket.SHUT_WR)
+                except Exception:
+                    pass
+                client_sock.close()
+            except Exception:
+                pass
+            return
+
+        # Check if this is an HTTP request and inject real client IP
+        try:
+            if b"\r\n\r\n" in initial_client_data:
+                parts = initial_client_data.split(b"\r\n\r\n", 1)
+                header_block = parts[0].decode("latin-1", errors="replace")
+                body_rest = parts[1] if len(parts) > 1 else b""
+
+                # Extract user-agent for client classification
+                ua = ""
+                for line in header_block.split("\r\n"):
+                    if line.lower().startswith("user-agent:"):
+                        ua = line.split(":", 1)[1].strip()
+                        break
+
+                if self.detector:
+                    self.detector.register_or_update(client_ip, ua)
+
+                # Inject X-Forwarded-For and X-Real-IP
+                forwarded_header = f"\r\nX-Forwarded-For: {client_ip}\r\nX-Real-IP: {client_ip}\r\nX-Forwarded-Proto: http"
+                new_header_block = header_block + forwarded_header
+                initial_client_data = new_header_block.encode("latin-1") + b"\r\n\r\n" + body_rest
+        except Exception:
+            pass
+
+        try:
+            backend_sock.sendall(initial_client_data)
+        except Exception:
+            pass
 
         done_count = [2]
         lock = threading.Lock()

@@ -278,6 +278,14 @@ async def get_service_worker():
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def root_direct(request: Request):
     """Direct root path to AI chat if no PIN required, or to welcome portal if PIN enabled."""
+    host_ip, _, _ = HotspotDetector.detect_host_ip()
+    host_hdr = request.headers.get("host", "").split(":")[0].strip().lower()
+    
+    # If the user typed an external domain (e.g. google.com, apple.com), redirect cleanly to host IP
+    if host_hdr and host_hdr not in (host_ip.lower(), "127.0.0.1", "localhost", "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"):
+        target_path = "/welcome" if config.get("security", {}).get("require_pin", False) else "/chat"
+        return RedirectResponse(url=f"http://{host_ip}{target_path}", status_code=302)
+
     if not config.get("security", {}).get("require_pin", False):
         chat_file = FRONTEND_DIR / "chat.html"
         if chat_file.exists():

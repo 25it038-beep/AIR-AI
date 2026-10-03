@@ -37,7 +37,9 @@ if exist "%APP_ROOT%scripts\setup_network.ps1" (
 
 echo.
 echo  [2/2] Starting AIR AI Appliance Server...
-echo.
+:: Clean up any stale instances occupying ports 80 and 8000
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :80\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
 :: Detect Python
 set "PYTHON_CMD="

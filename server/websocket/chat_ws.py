@@ -1,4 +1,4 @@
-﻿import json
+import json
 import asyncio
 import logging
 from typing import Optional
@@ -14,6 +14,7 @@ from ..security.sanitizer import (
     validate_conversation_id,
     validate_model_name
 )
+from ..web_search import WebSearchEngine
 
 logger = logging.getLogger("hs_ai.chat_ws")
 
@@ -172,6 +173,30 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             if images:
                 user_payload["images"] = images
             messages = [user_payload]
+
+            # Web Search Execution
+            web_search = bool(data.get("web_search", False))
+            if web_search and user_message:
+                try:
+                    await websocket.send_json({
+                        "type": "status",
+                        "status": "Searching the web...",
+                        "model": target_model,
+                        "conversation_id": conversation_id
+                    })
+                    search_data = WebSearchEngine.search(user_message, max_results=5)
+                    if search_data.get("success"):
+                        await websocket.send_json({
+                            "type": "search_results",
+                            "query": search_data["query"],
+                            "results": search_data["results"],
+                            "conversation_id": conversation_id
+                        })
+                        search_ctx = WebSearchEngine.format_search_context(search_data)
+                        messages.insert(0, {"role": "system", "content": search_ctx})
+                        logger.info(f"[WS CHAT] Injected {len(search_data['results'])} web search results into context.")
+                except Exception as se:
+                    logger.warning(f"[WS CHAT] Web search error: {se}")
 
             # Signal queue status to client
             await websocket.send_json({

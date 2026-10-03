@@ -425,6 +425,74 @@
       border-top: 1px solid rgba(255, 255, 255, 0.03);
     }
 
+    /* Web Search Toggle & Result Styles */
+    .btn-web-toggle {
+      flex: 0 0 auto !important;
+      width: auto !important;
+      padding: 6px 10px !important;
+      font-size: 0.78rem !important;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      height: 38px;
+      user-select: none;
+    }
+
+    .btn-web-toggle:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+    }
+
+    .btn-web-toggle.active {
+      background: rgba(45, 212, 191, 0.16) !important;
+      color: var(--accent-cyan) !important;
+      border-color: rgba(45, 212, 191, 0.5) !important;
+      box-shadow: 0 0 12px rgba(45, 212, 191, 0.22);
+    }
+
+    .web-search-banner {
+      background: rgba(45, 212, 191, 0.08);
+      border: 1px solid rgba(45, 212, 191, 0.25);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      animation: fadeIn 0.2s ease;
+    }
+
+    .web-source-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 3px 4px 3px 0;
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+      text-decoration: none;
+      transition: all 0.15s ease;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .web-source-chip:hover {
+      background: rgba(45, 212, 191, 0.2);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
     /* 3. Right Sidebar: AI & Network Inspector */
     .sidebar-right {
       width: 290px;
@@ -715,8 +783,13 @@
               📎
             </button>
 
+            <!-- Web Search Toggle Button -->
+            <button class="btn-web-toggle active" id="btnWebSearch" onclick="toggleWebSearch()" title="Web Search ON: Real-time web results enabled">
+              🌐 <span class="web-toggle-text">Web ON</span>
+            </button>
+
             <!-- Textarea -->
-            <textarea id="chatInput" class="composer-textarea" placeholder="Ask AIR AI..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+            <textarea id="chatInput" class="composer-textarea" placeholder="Ask AIR AI (Web search enabled)..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
 
             <!-- Send / Stop Actions -->
             <button class="btn btn-primary" id="btnSend" onclick="sendMessage()" style="min-height: 38px; padding: 6px 16px;">
