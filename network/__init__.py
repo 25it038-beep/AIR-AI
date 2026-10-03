@@ -17,6 +17,7 @@ from .connectivity_check import ConnectivityCheckManager
 from .device_detector import DeviceDetector
 from .port_manager import PortManager
 from .firewall_checker import FirewallChecker
+from .captive_portal.hardener import CaptiveHardener
 from . import captive_portal
 
 __all__ = [
@@ -28,5 +29,6 @@ __all__ = [
     "DeviceDetector",
     "PortManager",
     "FirewallChecker",
+    "CaptiveHardener",
     "captive_portal"
 ]

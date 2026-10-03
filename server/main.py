@@ -54,7 +54,8 @@ from network import (
     ConnectivityCheckManager,
     DeviceDetector,
     PortManager,
-    FirewallChecker
+    FirewallChecker,
+    CaptiveHardener
 )
 
 from server.api import (
@@ -382,7 +383,7 @@ async def captive_portal_404_handler(request: Request, exc):
         }
     )
 
-@app.get("/{full_path:path}", response_class=HTMLResponse)
+@app.api_route("/{full_path:path}", methods=["GET", "POST", "HEAD", "OPTIONS", "PUT"], response_class=HTMLResponse)
 async def universal_catchall_redirect(request: Request, full_path: str):
     """Fallback catch-all route to redirect any device to /chat or /welcome."""
     if full_path.startswith(("api/", "ws/", "static/", "vendor/")):
@@ -393,9 +394,14 @@ async def universal_catchall_redirect(request: Request, full_path: str):
     target_path = "/welcome" if config.get("security", {}).get("require_pin", False) else "/chat"
     target = f"http://{host_ip}{port_suffix}{target_path}"
     return HTMLResponse(
-        content=f'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url={target}"></head><body><script>window.location.replace("{target}");</script></body></html>',
+        content=f'<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url={target}"><script>window.location.replace("{target}");</script></head><body style="font-family:sans-serif;background:#090d16;color:#e2e8f0;text-align:center;padding:2rem;"><h2>AIR AI Network</h2><p>Connecting to AI appliance...</p><p><a href="{target}" style="color:#2dd4bf;">Click here to enter</a></p></body></html>',
         status_code=302,
-        headers={"Location": target}
+        headers={
+            "Location": target,
+            "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
 
 # ── Lifespan Startup & Shutdown ────────────────────────────────
@@ -432,6 +438,14 @@ async def startup_event():
     host_ip, adapter, is_hotspot = HotspotDetector.detect_host_ip()
     port = config.get("server", {}).get("port", 8000)
     net_log.info(f"Primary Host IP: {host_ip} ({adapter}, is_hotspot: {is_hotspot})")
+
+    # Step 4b: Apply Captive Portal & Network Hardening (Firewall & Hosts)
+    try:
+        CaptiveHardener.apply_firewall_rules()
+        added, msg = CaptiveHardener.harden_hosts_file(host_ip)
+        net_log.info(f"Captive portal hardening: {msg}")
+    except Exception as e:
+        net_log.warning(f"Captive portal hardening note: {e}")
 
     # Step 5: Start Local RFC 1035 DNS Server on UDP port 53
     try:

@@ -61,8 +61,8 @@ class DNSServer:
         self.port = port
         self.listen_ip = listen_ip
         self.resolve_all_captive = resolve_all_captive
-        self.sock: Optional[socket.socket] = None
-        self.thread: Optional[threading.Thread] = None
+        self.socks: list = []
+        self.threads: list = []
         self.is_running = False
         self.error_message: Optional[str] = None
         self.queries_answered = 0
@@ -73,59 +73,93 @@ class DNSServer:
             self.host_ip = new_ip
 
     def start(self) -> bool:
-        """Start the DNS server in a background daemon thread."""
+        """Start the DNS server across all relevant interfaces (Hotspot IP, localhost, wildcard)."""
         if self.is_running:
             return True
 
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.sock.bind((self.listen_ip, self.port))
-            self.is_running = True
-            self.error_message = None
+        self.socks = []
+        self.threads = []
+        target_set = []
 
-            self.thread = threading.Thread(target=self._serve_loop, name="HSAI-DNS-Server", daemon=True)
-            self.thread.start()
-            logger.info(f"Local DNS server started on {self.listen_ip}:{self.port} (Resolving to {self.host_ip})")
+        # If specific listen_ip is provided (e.g. tests or isolated loopback), bind only that
+        if self.listen_ip and self.listen_ip != "0.0.0.0":
+            target_set.append((self.listen_ip, self.port))
+        else:
+            # 1. Hotspot IP specifically (wins over 0.0.0.0 in Winsock)
+            if self.host_ip and self.host_ip not in ("0.0.0.0", "127.0.0.1"):
+                target_set.append((self.host_ip, self.port))
+            # 2. Localhost
+            target_set.append(("127.0.0.1", self.port))
+            # 3. Wildcard listen_ip (0.0.0.0)
+            target_set.append(("0.0.0.0", self.port))
+
+            # Only bind port 5353 if standard DNS port 53 is being configured
+            if self.port == 53:
+                if self.host_ip and self.host_ip not in ("0.0.0.0", "127.0.0.1"):
+                    target_set.append((self.host_ip, 5353))
+                target_set.append(("127.0.0.1", 5353))
+                target_set.append(("0.0.0.0", 5353))
+
+        # Deduplicate while preserving order
+        seen = set()
+        targets = []
+        for pair in target_set:
+            if pair not in seen:
+                seen.add(pair)
+                targets.append(pair)
+
+        self.is_running = True
+        bound_any = False
+        for ip, port in targets:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind((ip, port))
+                self.socks.append(s)
+                t = threading.Thread(target=self._serve_loop, args=(s,), name=f"AIRAI-DNS-{ip}-{port}", daemon=True)
+                t.start()
+                self.threads.append(t)
+                bound_any = True
+                logger.info(f"Local DNS bound to {ip}:{port} (Resolving to {self.host_ip})")
+            except Exception as e:
+                logger.debug(f"DNS bind to {ip}:{port} skipped: {e}")
+
+        if bound_any:
+            self.error_message = None
+            logger.info(f"AIR AI DNS active across {len(self.socks)} interface sockets.")
             return True
-        except Exception as e:
+        else:
             self.is_running = False
-            self.error_message = str(e)
-            logger.warning(f"Could not bind DNS server on UDP port {self.port}: {e}")
-            if self.sock:
-                try:
-                    self.sock.close()
-                except Exception:
-                    pass
-                self.sock = None
+            self.error_message = "Could not bind DNS on any interface"
+            logger.warning("Could not bind DNS server on UDP ports.")
             return False
 
     def stop(self):
-        """Safely stop the DNS server."""
+        """Safely stop all DNS server sockets."""
         self.is_running = False
-        if self.sock:
+        for s in self.socks:
             try:
-                self.sock.close()
+                s.close()
             except Exception:
                 pass
-            self.sock = None
+        self.socks.clear()
+        self.threads.clear()
         logger.info("Local DNS server stopped.")
 
-    def _serve_loop(self):
-        """Packet processing loop."""
-        while self.is_running and self.sock:
+    def _serve_loop(self, sock: socket.socket):
+        """Packet processing loop for a specific bound socket."""
+        while self.is_running:
             try:
-                data, client_addr = self.sock.recvfrom(512)
+                data, client_addr = sock.recvfrom(512)
                 if not data or len(data) < 12:
                     continue
 
                 response = self._build_response(data)
                 if response:
-                    self.sock.sendto(response, client_addr)
+                    sock.sendto(response, client_addr)
                     with self._lock:
                         self.queries_answered += 1
             except (socket.error, OSError):
-                # Socket closed or interrupted during shutdown
                 break
             except Exception as e:
                 logger.debug(f"DNS loop error: {e}")

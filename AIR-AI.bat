@@ -26,30 +26,17 @@ if %errorLevel% neq 0 (
 )
 
 echo.
-echo  [1/4] Applying Windows Firewall rules for AIR AI...
-netsh advfirewall firewall delete rule name="AIR AI Web Server" >nul 2>&1
-netsh advfirewall firewall delete rule name="AIR AI DNS Resolver" >nul 2>&1
-netsh advfirewall firewall delete rule name="HS AI Web & Captive Portal" >nul 2>&1
-netsh advfirewall firewall delete rule name="HS AI DNS Resolver" >nul 2>&1
-
-netsh advfirewall firewall add rule name="AIR AI Web Server" dir=in action=allow protocol=TCP localport=80,8000 profile=any >nul 2>&1
-netsh advfirewall firewall add rule name="AIR AI DNS Resolver" dir=in action=allow protocol=UDP localport=53,5353 profile=any >nul 2>&1
-echo        [OK] Firewall rules active (all profiles).
-
-echo.
-echo  [2/4] Enabling Captive Portal DNS Interception...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$h = 'C:\Windows\System32\drivers\etc\hosts'; $content = Get-Content $h -Raw -ErrorAction SilentlyContinue; if (!$content) { $content = '' }; $domains = @('connectivitycheck.gstatic.com', 'connectivitycheck.android.com', 'clients3.google.com', 'captive.apple.com', 'www.apple.com', 'msftconnecttest.com', 'www.msftconnecttest.com', 'msftncsi.com', 'www.msftncsi.com', 'detectportal.firefox.com', 'connectivity.samsung.com', 'connect.rom.miui.com', 'connectivitycheck.platform.hicloud.com', 'connectivitycheck.oppomobile.com', 'wifi.coloros.com', 'wifi.vivo.com.cn', 'air-ai.local', 'hs.ai', 'air.ai'); $added = 0; foreach ($d in $domains) { if ($content -notmatch [regex]::Escape($d)) { Add-Content -Path $h -Value \"192.168.137.1 $d\" -Encoding ASCII; $added++ } }; Write-Host ('       [OK] ' + $added + ' captive probe domains registered to 192.168.137.1')"
+echo  [1/2] Configuring Network & Captive Portal Interception...
+if exist "%APP_ROOT%scripts\setup_network.ps1" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_ROOT%scripts\setup_network.ps1"
+) else (
+    netsh advfirewall firewall add rule name="AIR AI Web Server" dir=in action=allow protocol=TCP localport=80,8000 profile=any >nul 2>&1
+    netsh advfirewall firewall add rule name="AIR AI DNS Resolver" dir=in action=allow protocol=UDP localport=53,5353 profile=any >nul 2>&1
+    ipconfig /flushdns >nul 2>&1
+)
 
 echo.
-echo  [3/4] Flushing DNS cache...
-ipconfig /flushdns >nul 2>&1
-echo        [OK] DNS cache flushed.
-
-echo.
-echo  [4/4] Starting AIR AI Appliance Server...
-echo.
-
+echo  [2/2] Starting AIR AI Appliance Server...
 :: Detect Python
 set "PYTHON_CMD="
 if exist "%APP_ROOT%Shared\python\python.exe" (
