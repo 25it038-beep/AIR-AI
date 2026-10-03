@@ -42,12 +42,12 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :80\> ^| findstr LISTENING') 
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
 :: Launch standalone executable if present
-if exist "%APP_ROOT%HS-AI.exe" (
-    "%APP_ROOT%HS-AI.exe" %*
-    goto :AfterRun
-)
 if exist "%APP_ROOT%AIR-AI.exe" (
     "%APP_ROOT%AIR-AI.exe" %*
+    goto :AfterRun
+)
+if exist "%APP_ROOT%HS-AI.exe" (
+    "%APP_ROOT%HS-AI.exe" %*
     goto :AfterRun
 )
 
