@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 import json
 import socket
@@ -160,8 +161,9 @@ class DedicatedCaptivePortalServer:
                         "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"
                     )
                     if host_val and host_val.lower() not in known_hosts:
-                        # If it's a private network IP, don't treat it as external
-                        if not re.match(r"^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)", host_val):
+                        # If it's a private network IP or loopback, don't treat it as external
+                        is_private = host_val.startswith(("192.168.", "10.", "172.", "127.", "169.254."))
+                        if not is_private:
                             is_external_host = True
                     break
 

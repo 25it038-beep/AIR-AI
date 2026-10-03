@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import time
 import shutil
@@ -283,7 +284,7 @@ async def root_direct(request: Request):
     
     # If the user typed an external domain (e.g. google.com, apple.com), redirect cleanly to host IP
     if host_hdr and host_hdr not in (host_ip.lower(), "127.0.0.1", "localhost", "air-ai.local", "hs-ai.local", "air.ai", "hs.ai"):
-        if not re.match(r"^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)", host_hdr):
+        if not host_hdr.startswith(("192.168.", "10.", "172.", "127.", "169.254.")):
             target_path = "/welcome" if config.get("security", {}).get("require_pin", False) else "/chat"
             return RedirectResponse(url=f"http://{host_ip}{target_path}", status_code=302)
 
