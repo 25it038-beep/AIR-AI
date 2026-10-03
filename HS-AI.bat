@@ -41,13 +41,19 @@ echo  [2/2] Starting AIR AI Appliance Server...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :80\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
-:: Launch standalone executable if present
-if exist "%APP_ROOT%AIR-AI.exe" (
-    "%APP_ROOT%AIR-AI.exe" %*
-    goto :AfterRun
+:: Sync updated standalone executable from dist if available
+if exist "%APP_ROOT%dist\HS-AI.exe" (
+    copy /y "%APP_ROOT%dist\HS-AI.exe" "%APP_ROOT%HS-AI.exe" >nul 2>&1
+    copy /y "%APP_ROOT%dist\HS-AI.exe" "%APP_ROOT%AIR-AI.exe" >nul 2>&1
 )
+
+:: Launch standalone executable if present
 if exist "%APP_ROOT%HS-AI.exe" (
     "%APP_ROOT%HS-AI.exe" %*
+    goto :AfterRun
+)
+if exist "%APP_ROOT%AIR-AI.exe" (
+    "%APP_ROOT%AIR-AI.exe" %*
     goto :AfterRun
 )
 
