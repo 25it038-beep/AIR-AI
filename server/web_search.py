@@ -13,7 +13,12 @@ import urllib.parse
 import urllib.request
 import re
 from typing import Dict, List, Any, Optional
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
+
+import html as html_lib
 
 logger = logging.getLogger("hs_ai.web_search")
 
@@ -38,24 +43,48 @@ class WebSearchEngine:
             url = "https://www.bing.com/search?q=" + urllib.parse.quote(query)
             req = urllib.request.Request(url, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=4.0) as resp:
-                html = resp.read().decode("utf-8", errors="ignore")
+                raw_html = resp.read().decode("utf-8", errors="ignore")
 
-            soup = BeautifulSoup(html, "html.parser")
-            for b in soup.select("li.b_algo"):
-                h2 = b.select_one("h2 a")
-                snippet = b.select_one(".b_caption p, .b_lineclamp2, .b_snippet, .b_algoSlug")
-                if h2:
-                    title = h2.get_text(strip=True)
-                    link = h2.get("href", "")
-                    snip_text = snippet.get_text(strip=True) if snippet else ""
-                    if title and link.startswith("http"):
-                        results.append({
-                            "title": title,
-                            "url": link,
-                            "snippet": snip_text
-                        })
-                if len(results) >= max_results:
-                    break
+            if BeautifulSoup is not None:
+                soup = BeautifulSoup(raw_html, "html.parser")
+                for b in soup.select("li.b_algo"):
+                    h2 = b.select_one("h2 a")
+                    snippet = b.select_one(".b_caption p, .b_lineclamp2, .b_snippet, .b_algoSlug")
+                    if h2:
+                        title = h2.get_text(strip=True)
+                        link = h2.get("href", "")
+                        snip_text = snippet.get_text(strip=True) if snippet else ""
+                        if title and link.startswith("http"):
+                            results.append({
+                                "title": title,
+                                "url": link,
+                                "snippet": snip_text
+                            })
+                    if len(results) >= max_results:
+                        break
+            else:
+                # Pure standard-library fallback: regex extraction
+                items = re.findall(r'<li class="b_algo"[^>]*>(.*?)</li>', raw_html, re.DOTALL)
+                for item in items:
+                    m_link = re.search(r'<h2><a\s+[^>]*href="([^"]+)"[^>]*>(.*?)</a></h2>', item, re.DOTALL)
+                    if m_link:
+                        link = m_link.group(1)
+                        raw_title = m_link.group(2)
+                        title = html_lib.unescape(re.sub(r'<[^>]+>', '', raw_title)).strip()
+                        
+                        m_snip = re.search(r'<p[^>]*>(.*?)</p>', item, re.DOTALL)
+                        snip_text = ""
+                        if m_snip:
+                            snip_text = html_lib.unescape(re.sub(r'<[^>]+>', '', m_snip.group(1))).strip()
+
+                        if title and link.startswith("http"):
+                            results.append({
+                                "title": title,
+                                "url": link,
+                                "snippet": snip_text
+                            })
+                    if len(results) >= max_results:
+                        break
         except Exception as e:
             logger.debug(f"Bing search error: {e}")
         return results

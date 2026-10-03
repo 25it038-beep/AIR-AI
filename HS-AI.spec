@@ -6,7 +6,20 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('frontend', 'frontend'), ('config', 'config'), ('scripts', 'scripts')],
-    hiddenimports=['uvicorn', 'websockets', 'psutil', 'pydantic', 'zeroconf', 'network', 'network.captive_portal', 'network.captive_portal.server', 'network.captive_portal.endpoints', 'network.captive_portal.detector', 'network.captive_portal.dns', 'network.captive_portal.diagnostics'],
+    hiddenimports=[
+        'uvicorn', 'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
+        'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan', 'uvicorn.lifespan.on',
+        'websockets', 'psutil', 'pydantic', 'zeroconf',
+        'network', 'network.captive_portal', 'network.captive_portal.server',
+        'network.captive_portal.endpoints', 'network.captive_portal.detector',
+        'network.captive_portal.dns', 'network.captive_portal.diagnostics',
+        'server', 'server.web_search', 'server.main', 'server.api',
+        'server.api.chat', 'server.api.models_api', 'server.api.system',
+        'server.api.security_api', 'server.api.files', 'server.websocket',
+        'server.websocket.chat_ws', 'server.websocket.metrics_ws'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +48,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    uac_admin=False,
 )

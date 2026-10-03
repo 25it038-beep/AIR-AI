@@ -41,6 +41,16 @@ echo  [2/2] Starting AIR AI Appliance Server...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :80\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000\> ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
+:: Launch standalone executable if present
+if exist "%APP_ROOT%HS-AI.exe" (
+    "%APP_ROOT%HS-AI.exe" %*
+    goto :AfterRun
+)
+if exist "%APP_ROOT%AIR-AI.exe" (
+    "%APP_ROOT%AIR-AI.exe" %*
+    goto :AfterRun
+)
+
 :: Detect Python
 set "PYTHON_CMD="
 if exist "%APP_ROOT%Shared\python\python.exe" (
@@ -70,6 +80,7 @@ exit /b 1
 :Launch
 %PYTHON_CMD% "%APP_ROOT%HS-AI.py" %*
 
+:AfterRun
 if %errorlevel% neq 0 (
     echo.
     echo AIR AI exited with code %errorlevel%.
